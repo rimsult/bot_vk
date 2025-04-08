@@ -29,12 +29,10 @@ def main():
             user_id = event.user_id
 
             # Обработка команд
-            if text == "привет":
+            if text == "начать":
                 send_message(user_id, "Привет! Я бот ВКонтакте!")
-            elif text == "помощь":
-                send_message(user_id, "Доступные команды:\n- привет\n- помощь")
             else:
-                send_message(user_id, "Извините, я не понимаю эту команду. Напишите 'помощь' для списка команд.")
+                send_message(user_id, text)
 
 if __name__ == "__main__":
     main()
