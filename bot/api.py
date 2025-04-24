@@ -2,6 +2,7 @@ import aiohttp
 from aiolimiter import AsyncLimiter
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 from config import VK_API_URL, VK_TOKEN, API_VERSION, RATE_LIMIT_PER_SEC, RATE_LIMIT_PER_MIN
+from logger import logger
 
 # Rate limiter: X requests/sec, Y requests/min
 limiter_sec = AsyncLimiter(RATE_LIMIT_PER_SEC, 1)
@@ -17,9 +18,11 @@ class VKAPI:
         async with limiter_sec, limiter_min:
             params.update({"access_token": VK_TOKEN, "v": API_VERSION})
             url = f"{VK_API_URL}{method}"
+            logger.debug(f"VKAPI.send: GET {url} params={params}")
             async with self.session.get(url, params=params) as resp:
                 data = await resp.json()
                 if 'error' in data:
+                    logger.error(f"VK API error: {data['error']}")
                     raise Exception(f"VK API error: {data['error']}")
                 return data['response']
 
@@ -27,7 +30,6 @@ class VKAPI:
         """Get Long Poll server info: full URL, key, ts"""
         resp = await self.send("messages.getLongPollServer", {})
         server = resp.get('server')
-        # Ensure URL has protocol
         server_url = server if server.startswith('https://') else f"https://{server}"
         return server_url, resp.get('key'), resp.get('ts')
 
@@ -35,6 +37,9 @@ class VKAPI:
     async def longpoll(self, server_url: str, key: str, ts: int, wait: int = 25, version: int = 3):
         """Direct Long Poll request to VK server"""
         params = {"act": "a_check", "key": key, "ts": ts, "wait": wait, "version": version}
+        logger.debug(f"LongPoll request to {server_url} params={params}")
         async with limiter_sec, limiter_min:
             async with self.session.get(server_url, params=params) as resp:
-                return await resp.json()
+                result = await resp.json()
+                logger.debug(f"LongPoll response: {result}")
+                return result
